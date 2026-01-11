@@ -119,12 +119,13 @@ class ClockScreen extends StatelessWidget {
                 ),
               ),
               Positioned(
-                bottom: 30,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+  bottom: MediaQuery.of(context).size.height < 700 ? null : 30,
+  top: MediaQuery.of(context).size.height < 700 ? 100 : null,
+  left: 0,
+  right: 0,
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
                     _buildControlButton(icon: Icons.skip_previous, label: 'Anterior', onPressed: () => clockProvider.navigateTime(-1)),
                     const SizedBox(width: 12),
                     _buildControlButton(
