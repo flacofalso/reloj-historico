@@ -6,6 +6,7 @@ import '../providers/clock_provider.dart';
 import '../providers/events_provider.dart';
 import '../widgets/analog_clock.dart';
 import '../widgets/digital_clock.dart';
+import '../widgets/events_gallery.dart';
 
 class ClockScreen extends StatelessWidget {
   const ClockScreen({super.key});
@@ -43,18 +44,50 @@ class ClockScreen extends StatelessWidget {
                 ),
               ),
               Positioned(
-                top: 40,
-                left: 20,
-                child: ElevatedButton.icon(
-                  onPressed: clockProvider.toggleClockMode,
-                  icon: Icon(clockProvider.isAnalogMode ? Icons.access_time : Icons.watch_later),
-                  label: Text(clockProvider.isAnalogMode ? 'Digital' : 'Análogo'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
+  top: 40,
+  left: 20,
+  child: Row(
+    children: [
+      ElevatedButton.icon(
+        onPressed: clockProvider.toggleClockMode,
+        icon: Icon(clockProvider.isAnalogMode ? Icons.access_time : Icons.watch_later),
+        label: Text(clockProvider.isAnalogMode ? 'Digital' : 'Análogo'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white.withOpacity(0.2),
+          foregroundColor: Colors.white,
+        ),
+      ),
+      const SizedBox(width: 12),
+      ElevatedButton.icon(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => DraggableScrollableSheet(
+              initialChildSize: 0.9,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) => EventsGallery(
+                events: eventsProvider.getAllEvents(),
+                currentTimeKey: clockProvider.getTimeKey(),
+                onEventSelected: (DateTime selectedTime) {
+                  clockProvider.setTime(selectedTime);
+                },
               ),
+            ),
+          );
+        },
+        icon: const Icon(Icons.grid_view),
+        label: const Text('Galería'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.amber.withOpacity(0.2),
+          foregroundColor: Colors.amber,
+        ),
+      ),
+    ],
+  ),
+),
               if (clockProvider.isManualMode)
                 Positioned(
                   top: 40,

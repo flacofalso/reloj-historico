@@ -80,4 +80,11 @@ class EventsProvider with ChangeNotifier {
     _hourEvents.clear();
     await loadEventsFromGoogleSheets();
   }
+List<HistoricalEvent> getAllEvents() {
+    final allEvents = <HistoricalEvent>[
+      ..._minuteEvents.values,
+      ..._hourEvents.values,
+    ];
+    return allEvents..sort((a, b) => a.time.compareTo(b.time));
+  }
 }
