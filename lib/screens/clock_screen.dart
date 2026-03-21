@@ -196,10 +196,19 @@ class ClockScreen extends StatelessWidget {
                 ),
               ),
 
-              // Botones de control - RESPONSIVE
+// Botones de control - RESPONSIVE MEJORADO
               Positioned(
+                // Lógica adaptativa:
+                // - Desktop/Tablet (>700px altura): botones ABAJO
+                // - Móvil portrait (600-700px): botones a 70% altura (debajo del evento)
+                // - Móvil landscape (<600px): botones ARRIBA
                 bottom: MediaQuery.of(context).size.height > 700 ? 30 : null,
-                top: MediaQuery.of(context).size.height > 700 ? null : 120,
+                top: MediaQuery.of(context).size.height > 700
+                    ? null
+                    : MediaQuery.of(context).size.height > 600
+                        ? MediaQuery.of(context).size.height *
+                            0.70 // Móvil portrait: 70% altura
+                        : 100, // Móvil landscape: arriba a 100px
                 left: 0,
                 right: 0,
                 child: Container(
