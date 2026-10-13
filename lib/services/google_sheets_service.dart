@@ -58,7 +58,7 @@ class GoogleSheetsService {
         if (values.length >= 8) {
           final event = HistoricalEvent(
             id: 'gs-${values[0]}-$i',
-            time: _cleanValue(values[0]),
+            time: normalizeTime(_cleanValue(values[0])),
             date: _cleanValue(values[1]),
             title: _cleanValue(values[2]),
             description: _cleanValue(values[3]),
@@ -100,6 +100,16 @@ class GoogleSheetsService {
     return values;
   }
   
+  // La planilla puede traer "8:46" o "08:46"; la app busca siempre "HH:mm"
+  static String normalizeTime(String value) {
+    final parts = value.split(':');
+    if (parts.length < 2) return value;
+    final hour = int.tryParse(parts[0].trim());
+    final minute = int.tryParse(parts[1].trim());
+    if (hour == null || minute == null) return value;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
   String _cleanValue(String value) {
     return value.trim().replaceAll('"', '').replaceAll("'", '');
   }
