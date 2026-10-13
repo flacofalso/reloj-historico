@@ -27,16 +27,29 @@ class _EventsGalleryState extends State<EventsGallery> {
     'ciencia': 'Ciencia',
     'politico': 'Política',
     'desastre': 'Desastres',
-    'historico': 'Histórico',
     'terrorismo': 'Terrorismo',
+    'tecnologia': 'Tecnología',
+    'cultura': 'Cultura',
+    'deporte': 'Deporte',
   };
+
+  // "Político", "político" y "politico" deben caer en la misma categoría
+  static String _categoryKey(String category) {
+    const accents = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u'};
+    return category
+        .trim()
+        .toLowerCase()
+        .split('')
+        .map((c) => accents[c] ?? c)
+        .join();
+  }
 
   List<HistoricalEvent> get _filteredEvents {
     if (_selectedCategory == 'all') {
       return widget.events;
     }
     return widget.events
-        .where((event) => event.category.toLowerCase() == _selectedCategory)
+        .where((event) => _categoryKey(event.category) == _selectedCategory)
         .toList();
   }
 
@@ -331,36 +344,46 @@ class _EventsGalleryState extends State<EventsGallery> {
   }
 
   Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
+    switch (_categoryKey(category)) {
       case 'guerra':
         return Colors.red.withOpacity(0.7);
       case 'ciencia':
         return Colors.blue.withOpacity(0.7);
       case 'politico':
-      case 'política':
         return Colors.purple.withOpacity(0.7);
       case 'desastre':
         return Colors.orange.withOpacity(0.7);
       case 'terrorismo':
         return Colors.red[900]!.withOpacity(0.7);
+      case 'tecnologia':
+        return Colors.teal.withOpacity(0.7);
+      case 'cultura':
+        return Colors.pink.withOpacity(0.7);
+      case 'deporte':
+        return Colors.green.withOpacity(0.7);
       default:
         return Colors.grey.withOpacity(0.7);
     }
   }
 
   String _getCategoryEmoji(String category) {
-    switch (category.toLowerCase()) {
+    switch (_categoryKey(category)) {
       case 'guerra':
         return '⚔️';
       case 'ciencia':
         return '🔬';
       case 'politico':
-      case 'política':
         return '🏛️';
       case 'desastre':
         return '🌋';
       case 'terrorismo':
         return '💣';
+      case 'tecnologia':
+        return '⚙️';
+      case 'cultura':
+        return '🎵';
+      case 'deporte':
+        return '🏆';
       default:
         return '📜';
     }

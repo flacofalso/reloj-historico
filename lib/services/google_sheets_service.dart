@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/historical_event.dart';
 
@@ -43,63 +42,75 @@ class GoogleSheetsService {
     }
   }
   
-  List<HistoricalEvent> _parseCsvToEvents(String csvData) {
+  List<HistoricalEvent> _parseCsvToEvents(String csvData) => parseEvents(csvData);
+
+  static List<HistoricalEvent> parseEvents(String csvData) {
     final events = <HistoricalEvent>[];
-    
-    try {
-      final lines = csvData.split('\n');
-      
-      for (int i = 1; i < lines.length; i++) {
-        final line = lines[i].trim();
-        if (line.isEmpty) continue;
-        
-        final values = _parseCsvLine(line);
-        
-        if (values.length >= 8) {
-          final event = HistoricalEvent(
-            id: 'gs-${values[0]}-$i',
-            time: normalizeTime(_cleanValue(values[0])),
-            date: _cleanValue(values[1]),
-            title: _cleanValue(values[2]),
-            description: _cleanValue(values[3]),
-            category: _cleanValue(values[4]),
-            imageUrl: _cleanValue(values[5]),
-            source: values.length > 6 ? _cleanValue(values[6]) : '',
-            verified: values.length > 7 ? _cleanValue(values[7]).toUpperCase() == 'TRUE' : false,
-          );
-          
-          events.add(event);
-        }
-      }
-    } catch (e) {
-      print('Error parsing CSV: $e');
+    final rows = parseCsv(csvData);
+
+    for (int i = 1; i < rows.length; i++) {
+      final values = rows[i].map((v) => v.trim()).toList();
+      if (values.length < 8 || values[0].isEmpty) continue;
+
+      events.add(HistoricalEvent(
+        id: 'gs-${values[0]}-$i',
+        time: normalizeTime(values[0]),
+        date: values[1],
+        title: values[2],
+        description: values[3],
+        category: values[4],
+        imageUrl: values[5],
+        source: values[6],
+        verified: values[7].toUpperCase() == 'TRUE',
+      ));
     }
-    
+
     return events;
   }
-  
-  List<String> _parseCsvLine(String line) {
-    final values = <String>[];
-    var currentValue = StringBuffer();
+
+  // CSV estándar: campos entre comillas, "" como comilla escapada y saltos de línea dentro de un campo
+  static List<List<String>> parseCsv(String csvData) {
+    final rows = <List<String>>[];
+    var row = <String>[];
+    final field = StringBuffer();
     var insideQuotes = false;
-    
-    for (int i = 0; i < line.length; i++) {
-      final char = line[i];
-      
-      if (char == '"') {
-        insideQuotes = !insideQuotes;
-      } else if (char == ',' && !insideQuotes) {
-        values.add(currentValue.toString());
-        currentValue = StringBuffer();
-      } else {
-        currentValue.write(char);
+
+    for (int i = 0; i < csvData.length; i++) {
+      final char = csvData[i];
+
+      if (insideQuotes) {
+        if (char == '"') {
+          if (i + 1 < csvData.length && csvData[i + 1] == '"') {
+            field.write('"');
+            i++;
+          } else {
+            insideQuotes = false;
+          }
+        } else {
+          field.write(char);
+        }
+      } else if (char == '"') {
+        insideQuotes = true;
+      } else if (char == ',') {
+        row.add(field.toString());
+        field.clear();
+      } else if (char == '\n') {
+        row.add(field.toString());
+        field.clear();
+        rows.add(row);
+        row = <String>[];
+      } else if (char != '\r') {
+        field.write(char);
       }
     }
-    
-    values.add(currentValue.toString());
-    return values;
+
+    if (field.isNotEmpty || row.isNotEmpty) {
+      row.add(field.toString());
+      rows.add(row);
+    }
+    return rows;
   }
-  
+
   // La planilla puede traer "8:46" o "08:46"; la app busca siempre "HH:mm"
   static String normalizeTime(String value) {
     final parts = value.split(':');
@@ -108,9 +119,5 @@ class GoogleSheetsService {
     final minute = int.tryParse(parts[1].trim());
     if (hour == null || minute == null) return value;
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-  }
-
-  String _cleanValue(String value) {
-    return value.trim().replaceAll('"', '').replaceAll("'", '');
   }
 }
