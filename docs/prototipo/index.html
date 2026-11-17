@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reloj Histórico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #f4efe6;
+    --ink-2: rgba(244, 239, 230, .72);
+    --ink-3: rgba(244, 239, 230, .45);
+    --line: rgba(244, 239, 230, .18);
+    --glass: rgba(14, 12, 10, .38);
+    --accent: #e8b65a;
+    --serif: "Instrument Serif", "Times New Roman", Georgia, serif;
+    --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --pad: clamp(18px, 4vw, 56px);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0a09; color: var(--ink); font-family: var(--sans); overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* ---------- Fondo cinematográfico ---------- */
+  .bg { position: fixed; inset: 0; overflow: hidden; }
+  .bg-layer {
+    position: absolute; inset: -4%;
+    background-size: cover; background-position: center;
+    opacity: 0; transition: opacity 1.4s ease;
+  }
+  .bg-layer.on { opacity: 1; animation: kenburns 40s ease-in-out infinite alternate; }
+  @keyframes kenburns { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.12) translate(-2%, -1.5%); } }
+  .bg-layer.typo { display: grid; place-items: center; }
+  .bg-layer.typo span {
+    font-family: var(--serif); font-size: min(62vw, 90vh); line-height: .8; letter-spacing: -.04em;
+    color: transparent; -webkit-text-stroke: 1px rgba(244, 239, 230, .14);
+    transform: translateY(-6vh);
+  }
+  .shade {
+    position: fixed; inset: 0; pointer-events: none;
+    background:
+      linear-gradient(to top, rgba(8,7,6,.95) 0%, rgba(8,7,6,.55) 38%, rgba(8,7,6,.1) 70%, rgba(8,7,6,.45) 100%),
+      radial-gradient(120% 90% at 20% 100%, rgba(8,7,6,.6), transparent 60%);
+  }
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; opacity: .09; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- Estructura ---------- */
+  .app {
+    position: relative; height: 100%;
+    display: grid; grid-template-rows: auto 1fr auto auto; grid-template-columns: minmax(0, 1fr);
+    padding: calc(env(safe-area-inset-top, 0px) + 18px) var(--pad) calc(env(safe-area-inset-bottom, 0px) + 18px);
+  }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+  .brand { font-size: 12px; letter-spacing: .32em; text-transform: uppercase; color: var(--ink-2); }
+  .brand b { color: var(--ink); font-weight: 600; }
+  .actions { display: flex; gap: 10px; align-items: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--glass);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    font-size: 12px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+    transition: background .2s, border-color .2s;
+  }
+  button.pill:hover { background: rgba(244, 239, 230, .12); border-color: rgba(244, 239, 230, .35); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #ff4d3d; box-shadow: 0 0 0 0 rgba(255,77,61,.6); animation: pulse 2s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(255,77,61,0); } 100% { box-shadow: 0 0 0 0 rgba(255,77,61,0); } }
+  .pill.explore .dot { background: var(--accent); animation: none; }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: clamp(20px, 4vw, 64px); min-height: 0; }
+
+  /* ---------- Texto del evento ---------- */
+  .story { max-width: 720px; padding-bottom: 8px; }
+  .kicker { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-2); }
+  .cat { display: inline-flex; align-items: center; gap: 6px; }
+  .cat i { width: 8px; height: 8px; border-radius: 2px; background: var(--cat, var(--accent)); }
+  .time {
+    font-family: var(--serif); font-weight: 400; line-height: .82; letter-spacing: -.03em;
+    font-size: clamp(88px, 15vw, 210px); margin: 10px 0 4px; font-variant-numeric: tabular-nums;
+  }
+  .time .colon { opacity: .55; }
+  .date { font-size: 14px; color: var(--ink-2); letter-spacing: .02em; }
+  .date em { font-style: normal; color: var(--ink-3); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 3.6vw, 48px); line-height: 1.05; margin: 18px 0 12px; text-wrap: balance; }
+  .desc { font-size: clamp(15px, 1.15vw, 17px); line-height: 1.6; color: var(--ink-2); margin: 0; max-width: 62ch;
+          display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .desc.open { -webkit-line-clamp: unset; }
+  .more { margin-top: 8px; font-size: 13px; color: var(--accent); }
+  .source { margin-top: 10px; font-size: 12px; color: var(--ink-3); }
+  .empty .time { opacity: .9; }
+
+  .swap { transition: opacity .45s ease, transform .45s ease; }
+  .swap.out { opacity: 0; transform: translateY(10px); }
+
+  /* ---------- Reloj arrastrable ---------- */
+  .dial-wrap { display: grid; justify-items: center; gap: 12px; }
+  .dial { width: clamp(150px, 19vw, 260px); aspect-ratio: 1; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+  .dial.dragging { cursor: grabbing; }
+  .dial svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .dial .face { fill: rgba(14,12,10,.42); stroke: rgba(244,239,230,.25); stroke-width: 1; }
+  .dial .tick { stroke: rgba(244,239,230,.35); stroke-width: 1; }
+  .dial .tick.major { stroke: rgba(244,239,230,.85); stroke-width: 2; }
+  .dial .mark { transition: r .2s; }
+  .dial .hand { stroke-linecap: round; }
+  .dial .hour { stroke: var(--ink); stroke-width: 5; }
+  .dial .minute { stroke: var(--ink); stroke-width: 3; }
+  .dial .second { stroke: var(--accent); stroke-width: 1.5; transition: opacity .3s; }
+  .dial .knob { fill: var(--accent); }
+  .dial-hint { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); text-align: center; }
+
+  /* ---------- Línea de tiempo 24 h ---------- */
+  .timeline { margin-top: clamp(16px, 3vh, 28px); }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+  .nav button { font-size: 13px; color: var(--ink-2); padding: 6px 0; transition: color .2s; }
+  .nav button:hover { color: var(--ink); }
+  .nav .next-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; display: inline-block; vertical-align: bottom; }
+  .track { position: relative; height: 44px; cursor: pointer; touch-action: none; }
+  .track .rail { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line); }
+  .track .ev { position: absolute; top: 50%; width: 2px; height: 16px; margin-left: -1px; transform: translateY(-50%); border-radius: 1px; background: var(--cat); opacity: .75; }
+  .track .hourmark { position: absolute; bottom: -2px; font-size: 10px; color: var(--ink-3); transform: translateX(-50%); letter-spacing: .06em; }
+  .track .head { position: absolute; top: 4px; bottom: 12px; width: 2px; margin-left: -1px; background: var(--ink); box-shadow: 0 0 12px rgba(244,239,230,.6); }
+  .track .head::before { content: ""; position: absolute; top: -4px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+  .tip {
+    position: absolute; bottom: 40px; transform: translateX(-50%); pointer-events: none;
+    background: rgba(14,12,10,.85); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+    font-size: 12px; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tip b { font-family: var(--serif); font-weight: 400; font-size: 16px; margin-right: 6px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); transform: translate(-50%, 20px);
+    background: var(--ink); color: #111; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 500;
+    opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; font-family: var(--serif); font-size: 28px; color: var(--ink-2); background: #0b0a09; transition: opacity .6s; }
+
+  /* ---------- Celular ---------- */
+  @media (max-width: 760px) {
+    .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; align-items: end; }
+    .dial-wrap { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 68px); right: var(--pad); }
+    .dial { width: 112px; }
+    .dial-hint { display: none; }
+    .time { font-size: clamp(76px, 24vw, 120px); }
+    .desc { -webkit-line-clamp: 4; }
+    .brand { font-size: 10px; letter-spacing: .24em; }
+    .pill .label-long { display: none; }
+    .pill { padding: 0 12px; }
+    .nav { font-size: 12px; }
+    .nav .next-label { max-width: 34vw; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bg-layer.on { animation: none; }
+    .swap, .bg-layer { transition-duration: .01s; }
+  }
+</style>
+</head>
+<body>
+<div class="bg" id="bg"></div>
+<div class="shade"></div>
+<div class="grain"></div>
+
+<div class="app">
+  <header>
+    <div class="brand"><b>Reloj</b> Histórico</div>
+    <div class="actions">
+      <button class="pill" id="mode" title="Volver a la hora actual"><span class="dot"></span><span id="modeText">En vivo</span></button>
+      <button class="pill" id="share" title="Compartir este minuto">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
+        <span class="label-long">Compartir</span>
+      </button>
+    </div>
+  </header>
+
+  <div></div>
+
+  <section class="main">
+    <article class="story swap" id="story" aria-live="polite">
+      <div class="kicker"><span id="scope">En este minuto</span><span class="cat" id="cat"><i></i><span></span></span></div>
+      <div class="time" id="time">--<span class="colon">:</span>--</div>
+      <div class="date" id="date"></div>
+      <h1 id="title"></h1>
+      <p class="desc" id="desc"></p>
+      <button class="more" id="more" hidden>Leer más</button>
+      <div class="source" id="source"></div>
+    </article>
+
+    <div class="dial-wrap">
+      <div class="dial" id="dial" tabindex="0" role="slider" aria-label="Arrastra las manecillas para viajar en el tiempo" aria-valuemin="0" aria-valuemax="1439">
+        <svg viewBox="-110 -110 220 220" id="dialSvg">
+          <circle class="face" r="104"/>
+          <g id="ticks"></g>
+          <g id="marks"></g>
+          <line class="hand hour" id="hHour" x1="0" y1="0" x2="0" y2="-50"/>
+          <line class="hand minute" id="hMin" x1="0" y1="0" x2="0" y2="-78"/>
+          <line class="hand second" id="hSec" x1="0" y1="14" x2="0" y2="-88"/>
+          <circle class="knob" r="5"/>
+        </svg>
+      </div>
+      <div class="dial-hint">Arrastra para viajar</div>
+    </div>
+  </section>
+
+  <footer class="timeline">
+    <div class="nav">
+      <button id="prev">← <span class="next-label" id="prevLabel"></span></button>
+      <button id="next"><span class="next-label" id="nextLabel"></span> →</button>
+    </div>
+    <div class="track" id="track" role="slider" tabindex="0" aria-label="Línea de tiempo de 24 horas">
+      <div class="rail"></div>
+      <div id="evs"></div>
+      <div class="head" id="head"></div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading" id="loading">Cargando la historia…</div>
+
+<script>
+const SHEET = '1TdXNlzU3ofoM9FyzBiQaHNyeZosisg2IksE-IzNMXLc';
+const DEFAULT_IMG = 'photo-1506905925346-21bda4d32df4';
+const CAT_COLORS = {
+  guerra: '#e5484d', ciencia: '#4c9aff', politico: '#a985f5', desastre: '#f2a33a',
+  terrorismo: '#c2333c', tecnologia: '#2fb8a6', cultura: '#ec6aa8', deporte: '#56c271',
+};
+const $ = id => document.getElementById(id);
+
+const state = {
+  minute: null,     // minuto del día que se muestra (0..1439)
+  live: true,
+  byMinute: new Map(),
+  byHour: new Map(),
+  sorted: [],       // eventos por minuto, ordenados
+  current: undefined, // undefined = aún no se ha dibujado nada
+};
+
+/* ---------- Datos ---------- */
+function parseCsv(text) {
+  const rows = []; let row = [], field = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else q = false; }
+      else field += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c !== '\r') field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+const catKey = c => c.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+function toEvents(text, scope) {
+  return parseCsv(text).slice(1).filter(r => r.length >= 8 && r[0].trim()).map(r => {
+    const [h, m] = r[0].trim().split(':').map(Number);
+    return {
+      minute: h * 60 + m, scope,
+      date: r[1].trim(), title: r[2].trim(), desc: r[3].trim(),
+      cat: r[4].trim(), color: CAT_COLORS[catKey(r[4])] || '#e8b65a',
+      img: r[5].trim().includes(DEFAULT_IMG) ? '' : r[5].trim(),
+      source: r[6].trim(), verified: r[7].trim().toUpperCase() === 'TRUE',
+    };
+  });
+}
+async function load() {
+  const url = s => `https://docs.google.com/spreadsheets/d/${SHEET}/gviz/tq?tqx=out:csv&sheet=${s}`;
+  const [m, h] = await Promise.all([fetch(url('EventosPorMinutos')).then(r => r.text()), fetch(url('EventosPorHora')).then(r => r.text())]);
+  toEvents(m, 'minute').forEach(e => state.byMinute.set(e.minute, e));
+  toEvents(h, 'hour').forEach(e => state.byHour.set(Math.floor(e.minute / 60), e));
+  state.sorted = [...state.byMinute.values()].sort((a, b) => a.minute - b.minute);
+}
+
+/* ---------- Utilidades ---------- */
+const pad = n => String(n).padStart(2, '0');
+const fmt = min => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+const nowMinute = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const wrap = m => ((m % 1440) + 1440) % 1440;
+function eventFor(min) { return state.byMinute.get(min) || state.byHour.get(Math.floor(min / 60)) || null; }
+function nextEvent(min, dir) {
+  const list = state.sorted; if (!list.length) return null;
+  if (dir > 0) return list.find(e => e.minute > min) || list[0];
+  return [...list].reverse().find(e => e.minute < min) || list[list.length - 1];
+}
+function formatDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y) return { text: iso, ago: '' };
+  const text = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(y, m - 1, d));
+  const years = new Date().getFullYear() - y;
+  return { text, ago: years > 0 ? `hace ${years} años` : '' };
+}
+
+/* ---------- Fondo ---------- */
+const imgCache = new Set();
+function preload(e) { if (e && e.img && !imgCache.has(e.img)) { imgCache.add(e.img); new Image().src = e.img; } }
+function setBackground(e) {
+  const bg = $('bg');
+  const layer = document.createElement('div');
+  layer.className = 'bg-layer';
+  if (e && e.img) layer.style.backgroundImage = `url("${e.img}")`;
+  else {
+    layer.classList.add('typo');
+    const color = e ? e.color : '#e8b65a';
+    layer.style.background = `radial-gradient(80% 70% at 70% 30%, ${color}33, transparent 70%), #0d0b0a`;
+    layer.innerHTML = `<span>${e ? e.date.slice(0, 4) : ''}</span>`;
+  }
+  bg.appendChild(layer);
+  requestAnimationFrame(() => requestAnimationFrame(() => layer.classList.add('on')));
+  const old = [...bg.children].slice(0, -1);
+  setTimeout(() => old.forEach(n => n.remove()), 1500);
+}
+
+/* ---------- Render ---------- */
+let swapTimer, bgTimer;
+function render(min, { animate = true } = {}) {
+  state.minute = min;
+  const e = eventFor(min);
+  const changed = e !== state.current;
+  state.current = e;
+
+  // Reloj, línea y hora siempre al instante
+  drawHands();
+  $('head').style.left = `${(min / 1440) * 100}%`;
+  $('dial').setAttribute('aria-valuenow', min);
+  $('dial').setAttribute('aria-valuetext', fmt(min));
+  $('time').innerHTML = `${pad(Math.floor(min / 60))}<span class="colon">:</span>${pad(min % 60)}`;
+  updateNav();
+  updateMarks();
+
+  if (!changed) return;
+  const story = $('story');
+  const fill = () => {
+    story.classList.toggle('empty', !e);
+    $('scope').textContent = !e ? 'Sin registro' : e.scope === 'minute' ? 'En este minuto' : 'En esta hora';
+    const cat = $('cat');
+    cat.hidden = !e;
+    if (e) { cat.style.setProperty('--cat', e.color); cat.querySelector('span').textContent = e.cat; }
+    if (e) {
+      const d = formatDate(e.date);
+      $('date').innerHTML = `${d.text}${d.ago ? ` <em>· ${d.ago}</em>` : ''}`;
+    } else $('date').textContent = '';
+    $('title').textContent = e ? e.title : 'Este minuto aún no tiene historia';
+    const desc = $('desc');
+    desc.textContent = e ? e.desc : 'Arrastra el reloj o usa la línea de tiempo para descubrir otros momentos.';
+    desc.classList.remove('open');
+    requestAnimationFrame(() => { $('more').hidden = desc.scrollHeight <= desc.clientHeight + 2; $('more').textContent = 'Leer más'; });
+    $('source').textContent = e && e.source ? `Fuente: ${e.source}${e.verified ? '' : ' · hora por confirmar'}` : '';
+  };
+  clearTimeout(swapTimer);
+  if (animate) {
+    story.classList.add('out');
+    swapTimer = setTimeout(() => { fill(); story.classList.remove('out'); }, 220);
+  } else fill();
+
+  // Fondo con pequeño retraso para no parpadear al arrastrar rápido
+  clearTimeout(bgTimer);
+  bgTimer = setTimeout(() => {
+    setBackground(e);
+    preload(nextEvent(min, 1)); preload(nextEvent(min, -1));
+  }, animate ? 160 : 0);
+}
+
+function updateNav() {
+  const p = nextEvent(state.minute, -1), n = nextEvent(state.minute, 1);
+  $('prevLabel').textContent = p ? `${fmt(p.minute)} ${p.title}` : '';
+  $('nextLabel').textContent = n ? `${fmt(n.minute)} ${n.title}` : '';
+}
+
+function setLive(live) {
+  state.live = live;
+  const btn = $('mode');
+  btn.classList.toggle('explore', !live);
+  $('modeText').innerHTML = live ? 'En vivo' : '<span class="label-long">Volver al </span>presente';
+  $('hSec').style.opacity = live ? 1 : 0;
+  if (live) { history.replaceState(null, '', location.pathname); render(nowMinute()); }
+}
+function goTo(min, opts) {
+  min = wrap(min);
+  if (state.live) setLive(false);
+  history.replaceState(null, '', `#${fmt(min)}`);
+  render(min, opts);
+}
+
+/* ---------- Reloj SVG ---------- */
+function buildDial() {
+  const g = $('ticks');
+  for (let i = 0; i < 60; i++) {
+    const a = i * 6 * Math.PI / 180, major = i % 5 === 0;
+    const r1 = major ? 88 : 94, r2 = 100;
+    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l.setAttribute('x1', r1 * Math.sin(a)); l.setAttribute('y1', -r1 * Math.cos(a));
+    l.setAttribute('x2', r2 * Math.sin(a)); l.setAttribute('y2', -r2 * Math.cos(a));
+    l.setAttribute('class', 'tick' + (major ? ' major' : ''));
+    g.appendChild(l);
+  }
+}
+// Puntos en el borde del reloj: eventos dentro de la hora mostrada
+function updateMarks() {
+  const g = $('marks'); g.innerHTML = '';
+  const h = Math.floor(state.minute / 60);
+  state.sorted.filter(e => Math.floor(e.minute / 60) === h).forEach(e => {
+    const a = (e.minute % 60) * 6 * Math.PI / 180;
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', 81 * Math.sin(a)); c.setAttribute('cy', -81 * Math.cos(a));
+    c.setAttribute('r', e.minute === state.minute ? 5 : 3.2);
+    c.setAttribute('fill', e.color); c.setAttribute('class', 'mark');
+    g.appendChild(c);
+  });
+}
+function drawHands() {
+  const m = state.minute, sec = state.live ? new Date().getSeconds() : 0;
+  $('hHour').setAttribute('transform', `rotate(${((m / 60) % 12) * 30})`);
+  $('hMin').setAttribute('transform', `rotate(${(m % 60) * 6 + sec * .1})`);
+  $('hSec').setAttribute('transform', `rotate(${sec * 6})`);
+}
+
+/* ---------- Arrastrar el reloj ---------- */
+function setupDial() {
+  const dial = $('dial');
+  let dragging = false, lastMin = 0;
+  const angleMinute = ev => {
+    const r = dial.getBoundingClientRect();
+    const x = ev.clientX - (r.left + r.width / 2), y = ev.clientY - (r.top + r.height / 2);
+    let deg = Math.atan2(x, -y) * 180 / Math.PI; if (deg < 0) deg += 360;
+    return Math.round(deg / 6) % 60;
+  };
+  dial.addEventListener('pointerdown', ev => {
+    dragging = true; dial.classList.add('dragging'); dial.setPointerCapture(ev.pointerId);
+    lastMin = state.minute % 60;
+    move(ev);
+  });
+  const move = ev => {
+    if (!dragging) return;
+    const m = angleMinute(ev);
+    let delta = m - lastMin;
+    if (delta > 30) delta -= 60;      // cruzó las 12 hacia atrás
+    if (delta < -30) delta += 60;     // cruzó las 12 hacia adelante
+    if (!delta) return;
+    lastMin = m;
+    goTo(state.minute + delta);
+  };
+  dial.addEventListener('pointermove', move);
+  const end = () => { dragging = false; dial.classList.remove('dragging'); };
+  dial.addEventListener('pointerup', end); dial.addEventListener('pointercancel', end);
+  dial.addEventListener('keydown', ev => {
+    const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 60, PageDown: -60 }[ev.key];
+    if (step) { ev.preventDefault(); goTo(state.minute + step); }
+  });
+}
+
+/* ---------- Línea de tiempo ---------- */
+function setupTrack() {
+  const track = $('track'), tip = $('tip');
+  const evs = $('evs');
+  state.sorted.forEach(e => {
+    const d = document.createElement('div');
+    d.className = 'ev'; d.style.left = `${(e.minute / 1440) * 100}%`; d.style.setProperty('--cat', e.color);
+    evs.appendChild(d);
+  });
+  [0, 3, 6, 9, 12, 15, 18, 21].forEach(h => {
+    const s = document.createElement('div');
+    s.className = 'hourmark'; s.style.left = `${(h / 24) * 100}%`; s.textContent = pad(h);
+    if (h === 0) s.style.transform = 'none';
+    evs.appendChild(s);
+  });
+  const minAt = ev => {
+    const r = track.getBoundingClientRect();
+    return Math.max(0, Math.min(1439, Math.round(((ev.clientX - r.left) / r.width) * 1440)));
+  };
+  // Al acercarse a un evento, se "imanta" a él
+  const snap = min => {
+    const near = state.sorted.reduce((best, e) => Math.abs(e.minute - min) < Math.abs(best.minute - min) ? e : best, state.sorted[0]);
+    const tolerance = 1440 / track.getBoundingClientRect().width * 6;
+    return near && Math.abs(near.minute - min) <= tolerance ? near.minute : min;
+  };
+  let down = false;
+  track.addEventListener('pointerdown', ev => { down = true; track.setPointerCapture(ev.pointerId); goTo(snap(minAt(ev))); });
+  track.addEventListener('pointermove', ev => {
+    const min = snap(minAt(ev)), e = eventFor(min);
+    const r = track.getBoundingClientRect();
+    tip.hidden = false;
+    tip.style.left = `${Math.min(Math.max(((min / 1440) * r.width), 90), r.width - 90)}px`;
+    tip.innerHTML = `<b>${fmt(min)}</b>${e && e.scope === 'minute' ? e.title : ''}`;
+    if (down) goTo(min);
+  });
+  track.addEventListener('pointerup', () => { down = false; });
+  track.addEventListener('pointerleave', () => { tip.hidden = true; });
+  track.addEventListener('keydown', ev => {
+    if (ev.key === 'ArrowRight') { ev.preventDefault(); goTo(nextEvent(state.minute, 1).minute); }
+    if (ev.key === 'ArrowLeft') { ev.preventDefault(); goTo(nextEvent(state.minute, -1).minute); }
+  });
+}
+
+/* ---------- Compartir ---------- */
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+async function share() {
+  const min = state.minute, e = state.current;
+  const url = `${location.origin}${location.pathname}#${fmt(min)}`;
+  const text = e ? `${fmt(min)} — ${e.title} (${e.date.slice(0, 4)})` : `${fmt(min)} en el Reloj Histórico`;
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Reloj Histórico', text, url }); return; } catch (err) { if (err.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('Enlace copiado'); }
+  catch { toast(url); }
+}
+
+/* ---------- Inicio ---------- */
+function minuteFromHash() {
+  const m = location.hash.match(/^#(\d{1,2})[:\-](\d{2})$/);
+  if (!m) return null;
+  const h = +m[1], mi = +m[2];
+  return h < 24 && mi < 60 ? h * 60 + mi : null;
+}
+async function start() {
+  buildDial();
+  try { await load(); }
+  catch { $('loading').textContent = 'No se pudo cargar la planilla de eventos.'; return; }
+  setupDial(); setupTrack();
+
+  $('mode').addEventListener('click', () => { if (!state.live) setLive(true); });
+  $('share').addEventListener('click', share);
+  $('prev').addEventListener('click', () => goTo(nextEvent(state.minute, -1).minute));
+  $('next').addEventListener('click', () => goTo(nextEvent(state.minute, 1).minute));
+  $('more').addEventListener('click', () => {
+    const open = $('desc').classList.toggle('open');
+    $('more').textContent = open ? 'Leer menos' : 'Leer más';
+  });
+  document.addEventListener('keydown', ev => {
+    if (ev.target.closest('.dial, .track')) return;
+    if (ev.key === 'ArrowRight') goTo(nextEvent(state.minute, 1).minute);
+    if (ev.key === 'ArrowLeft') goTo(nextEvent(state.minute, -1).minute);
+    if (ev.key === 'Escape' && !state.live) setLive(true);
+  });
+  // Deslizar en el celular: pasa al evento anterior/siguiente
+  let sx = null;
+  $('story').addEventListener('touchstart', ev => { sx = ev.touches[0].clientX; }, { passive: true });
+  $('story').addEventListener('touchend', ev => {
+    if (sx === null) return;
+    const dx = ev.changedTouches[0].clientX - sx; sx = null;
+    if (Math.abs(dx) > 50) goTo(nextEvent(state.minute, dx < 0 ? 1 : -1).minute);
+  });
+  window.addEventListener('hashchange', () => { const m = minuteFromHash(); if (m !== null && m !== state.minute) goTo(m); });
+
+  const fromHash = minuteFromHash();
+  if (fromHash !== null) { state.live = false; setLive(false); render(fromHash, { animate: false }); }
+  else render(nowMinute(), { animate: false });
+
+  setInterval(() => {
+    if (!state.live) return;
+    const m = nowMinute();
+    if (m !== state.minute) render(m); else drawHands();
+  }, 1000);
+
+  const loading = $('loading'); loading.style.opacity = 0; setTimeout(() => loading.remove(), 600);
+}
+start();
+</script>
+</body>
+</html>
