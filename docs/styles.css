@@ -323,6 +323,32 @@ svg { flex: none; }
 .pie strong { color: var(--color-texto); }
 .pie a:hover { color: var(--color-texto); }
 
+/* Página 404 */
+.no-encontrada { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: var(--esp-700) var(--gutter); }
+.no-encontrada-interior { max-width: 680px; display: grid; justify-items: start; gap: var(--esp-200); }
+.no-encontrada-interior p { color: var(--color-texto-2); }
+.no-encontrada-codigo { color: var(--color-marca) !important; }
+
+/* Revisión de fotos */
+.resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--esp-200); margin-bottom: var(--esp-400); }
+.resumen-dato { padding: var(--esp-300); border: 1px solid var(--color-borde); border-radius: var(--radio-xl); background: var(--color-superficie); }
+.resumen-dato dt { color: var(--color-texto-2); }
+.resumen-dato dd { margin: var(--esp-50) 0 0; }
+.revision { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--esp-200); }
+.revision-item {
+  display: grid; align-content: start; gap: var(--esp-200); padding: var(--esp-75);
+  border: 1px solid var(--color-borde); border-radius: var(--radio-xl); background: var(--color-superficie);
+}
+.revision-item[data-estado="rota"] { border-color: var(--color-vivo); }
+.miniatura { display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radio-md); background: var(--color-fondo); }
+.miniatura img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.miniatura-vacia { color: var(--color-texto-2); }
+.revision-cuerpo { display: grid; gap: var(--esp-75); padding: 0 var(--esp-100) var(--esp-100); }
+.revision-url { color: var(--color-texto-2); overflow-wrap: anywhere; }
+.estado { padding: var(--esp-25) var(--esp-75); border-radius: var(--radio-full); background: var(--color-superficie-2); color: var(--color-texto-2); white-space: nowrap; }
+[data-estado="propia"] .estado { background: #1E3A2A; color: #8FE0AE; }
+[data-estado="rota"] .estado { background: #4A1F1C; color: #FFB4AC; }
+
 /* Aviso */
 .aviso {
   position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--esp-300)); z-index: 40;

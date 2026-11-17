@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Revisión de fotos · Reloj Histórico</title>
+<!-- Página de trabajo: no aparece en buscadores ni está enlazada desde el sitio -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#131209">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="datos.js" defer></script>
+<script src="revisar-fotos.js" defer></script>
+</head>
+<body>
+<main class="seccion">
+  <div class="seccion-interior">
+    <div class="seccion-cabeza">
+      <a class="enlace boton-sm" href="./">Vuelve al reloj</a>
+      <h1 class="encabezado-3">Revisión de fotos</h1>
+      <p class="cuerpo-3">Esta página lee la planilla en vivo y muestra la foto de fondo de cada hecho. Úsala después de cambiar la columna ImagenURL para confirmar que cada foto carga y se ve bien. Recarga la página para ver los cambios.</p>
+    </div>
+
+    <dl class="resumen" id="resumen" aria-live="polite">
+      <div class="resumen-dato"><dt class="leyenda-1">Con foto propia</dt><dd class="encabezado-4 cifras" id="nPropia">–</dd></div>
+      <div class="resumen-dato"><dt class="leyenda-1">Con la foto genérica</dt><dd class="encabezado-4 cifras" id="nGenerica">–</dd></div>
+      <div class="resumen-dato"><dt class="leyenda-1">Sin foto</dt><dd class="encabezado-4 cifras" id="nVacia">–</dd></div>
+      <div class="resumen-dato"><dt class="leyenda-1">No cargan</dt><dd class="encabezado-4 cifras" id="nRota">–</dd></div>
+    </dl>
+
+    <div class="filtros" id="filtros" role="group" aria-label="Filtrar fotos">
+      <button class="chip titulo-4" data-filtro="todas" aria-pressed="true">Todas</button>
+      <button class="chip titulo-4" data-filtro="faltan" aria-pressed="false">Por cambiar</button>
+      <button class="chip titulo-4" data-filtro="rota" aria-pressed="false">No cargan</button>
+    </div>
+
+    <ul class="revision" id="lista" aria-live="polite">
+      <li class="esqueleto" aria-hidden="true"></li>
+      <li class="esqueleto" aria-hidden="true"></li>
+      <li class="esqueleto" aria-hidden="true"></li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>

@@ -1,12 +1,6 @@
 /* Reloj Histórico · lógica del sitio
-   Datos: planilla pública de Google Sheets (hojas EventosPorMinutos y EventosPorHora). */
+   Los datos y las reglas de las fotos están en datos.js. */
 
-const PLANILLA = '1TdXNlzU3ofoM9FyzBiQaHNyeZosisg2IksE-IzNMXLc';
-const IMG_POR_DEFECTO = 'photo-1506905925346-21bda4d32df4'; // foto genérica repetida en la planilla
-const COLORES = {
-  guerra: '#E5484D', ciencia: '#4C9AFF', politico: '#A985F5', desastre: '#F2A33A',
-  terrorismo: '#C2333C', tecnologia: '#2FB8A6', cultura: '#EC6AA8', deporte: '#56C271',
-};
 const $ = id => document.getElementById(id);
 const sinMovimiento = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -22,46 +16,11 @@ const estado = {
 };
 
 /* ---------- Datos ---------- */
-function leerCsv(texto) {
-  const filas = []; let fila = [], campo = '', comillas = false;
-  for (let i = 0; i < texto.length; i++) {
-    const c = texto[i];
-    if (comillas) {
-      if (c === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else comillas = false; }
-      else campo += c;
-    } else if (c === '"') comillas = true;
-    else if (c === ',') { fila.push(campo); campo = ''; }
-    else if (c === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; }
-    else if (c !== '\r') campo += c;
-  }
-  if (campo || fila.length) { fila.push(campo); filas.push(fila); }
-  return filas;
-}
-const claveCat = c => c.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-function aEventos(texto, alcance) {
-  return leerCsv(texto).slice(1).filter(f => f.length >= 8 && /^\d{1,2}:\d{2}/.test(f[0].trim())).map(f => {
-    const [h, m] = f[0].trim().split(':').map(Number);
-    const img = f[5].trim();
-    return {
-      minuto: h * 60 + m, alcance,
-      fecha: f[1].trim(), titulo: f[2].trim(), desc: f[3].trim(),
-      cat: f[4].trim(), clave: claveCat(f[4]), color: COLORES[claveCat(f[4])] || '#E8B65A',
-      img: !img || img.includes(IMG_POR_DEFECTO) ? '' : img,
-      fuente: f[6].trim(), verificado: f[7].trim().toUpperCase() === 'TRUE',
-    };
-  });
-}
 async function cargar() {
-  const url = hoja => `https://docs.google.com/spreadsheets/d/${PLANILLA}/gviz/tq?tqx=out:csv&sheet=${hoja}`;
-  const leer = async hoja => {
-    const r = await fetch(url(hoja));
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.text();
-  };
-  const [m, h] = await Promise.all([leer('EventosPorMinutos'), leer('EventosPorHora')]);
+  const { minutos, horas } = await RH.cargar();
   estado.porMinuto.clear(); estado.porHora.clear();
-  aEventos(m, 'minuto').forEach(e => estado.porMinuto.set(e.minuto, e));
-  aEventos(h, 'hora').forEach(e => estado.porHora.set(Math.floor(e.minuto / 60), e));
+  minutos.forEach(e => estado.porMinuto.set(e.minuto, e));
+  horas.forEach(e => estado.porHora.set(Math.floor(e.minuto / 60), e));
   estado.ordenados = [...estado.porMinuto.values()].sort((a, b) => a.minuto - b.minuto);
   if (!estado.ordenados.length && !estado.porHora.size) throw new Error('planilla vacía');
 }
@@ -89,12 +48,29 @@ const desplazar = el => el.scrollIntoView({ behavior: sinMovimiento.matches ? 'a
 
 /* ---------- Fondo ---------- */
 const precargadas = new Set();
-function precargar(e) { if (e && e.img && !precargadas.has(e.img)) { precargadas.add(e.img); new Image().src = e.img; } }
+function precargar(e) {
+  const url = e && RH.urlFoto(e.img);
+  if (url && !precargadas.has(url)) { precargadas.add(url); new Image().src = url; }
+}
+// La foto se muestra solo cuando terminó de cargar; si falla, el fondo queda liso
+let pedidoFondo = 0;
 function ponerFondo(e) {
+  const pedido = ++pedidoFondo;
+  const url = e ? RH.urlFoto(e.img) : '';
+  if (!url) return mostrarCapa('');
+  const img = new Image();
+  img.onload = () => { if (pedido === pedidoFondo) mostrarCapa(url); };
+  img.onerror = () => {
+    console.warn(`Reloj Histórico: no carga la foto de las ${fmt(e.minuto)} (${e.titulo}): ${e.img}`);
+    if (pedido === pedidoFondo) mostrarCapa('');
+  };
+  img.src = url;
+}
+function mostrarCapa(url) {
   const fondo = $('fondo');
   const capa = document.createElement('div');
   capa.className = 'capa';
-  if (e && e.img) capa.style.backgroundImage = `url("${encodeURI(e.img).replace(/"/g, '%22')}")`;
+  if (url) capa.style.backgroundImage = `url("${url.replace(/"/g, '%22')}")`;
   fondo.appendChild(capa);
   requestAnimationFrame(() => requestAnimationFrame(() => capa.classList.add('visible')));
   const antiguas = [...fondo.children].slice(0, -1);
@@ -131,7 +107,11 @@ function render(min, { animar = true } = {}) {
     desc.classList.remove('abierta');
     $('mas').textContent = 'Leer la historia completa';
     requestAnimationFrame(() => { $('mas').hidden = desc.scrollHeight <= desc.clientHeight + 2; });
-    $('fuente').textContent = e && e.fuente ? `Fuente: ${e.fuente}${e.verificado ? '' : ' · hora por confirmar'}` : '';
+    const notas = [];
+    if (e && e.fuente) notas.push(`Fuente: ${e.fuente}`);
+    if (e && e.fuente && !e.verificado) notas.push('hora por confirmar');
+    if (e && e.img && e.creditos) notas.push(`Foto: ${e.creditos}`);
+    $('fuente').textContent = notas.join(' · ');
   };
   clearTimeout(tSalida);
   if (animar && !sinMovimiento.matches) {
@@ -437,7 +417,16 @@ async function iniciarDatos() {
   render(estado.minuto, { animar: false });
 }
 
+// El sitio anterior (Flutter) instalaba un service worker que guardaba copias de la app.
+// Se elimina para que nadie quede viendo la versión antigua.
+function limpiarVersionAnterior() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+  if ('caches' in window) caches.keys().then(ks => ks.filter(k => k.startsWith('flutter')).forEach(k => caches.delete(k))).catch(() => {});
+}
+
 function iniciar() {
+  limpiarVersionAnterior();
   construirReloj();
   configurarReloj();
   configurarMenu();
