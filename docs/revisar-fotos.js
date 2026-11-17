@@ -34,7 +34,7 @@
     const url = RH.urlFoto(e.imgOriginal, 480, 270);
     if (url) {
       const img = document.createElement('img');
-      img.loading = 'lazy'; img.decoding = 'async'; img.alt = ''; img.width = 480; img.height = 270;
+      img.decoding = 'async'; // sin carga diferida: así se detectan todas las fotos rotas de inmediato img.alt = ''; img.width = 480; img.height = 270;
       img.addEventListener('error', () => {
         const v = document.createElement('span'); v.className = 'miniatura-vacia leyenda-2'; v.textContent = 'La foto no carga';
         img.replaceWith(v);
